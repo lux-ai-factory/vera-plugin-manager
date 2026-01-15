@@ -6,7 +6,7 @@ from typing import Dict
 
 from a4s_plugin_interface.base_evaluation_plugin import BaseEvaluationPlugin
 
-core_plugin_path = 'plugins/core'
+plugin_path = 'plugins'
 
 def find_module_directory(pkg_root: Path) -> Path | None:
     if (pkg_root / "__init__.py").exists():
@@ -22,10 +22,8 @@ def find_module_directory(pkg_root: Path) -> Path | None:
     return None
 
 class Loader(str):
-    def __init__(self, dev_plugin_path: str):
-        if not dev_plugin_path:
-            return
-        self.plugin_dirs = [Path(dev_plugin_path), Path(core_plugin_path)]
+    def __init__(self, plugin_path: str):
+        self.plugin_dirs = [Path(plugin_path), Path(plugin_path)]
         self.plugins: Dict[str, type[BaseEvaluationPlugin]] = {}
         self.load_plugin()
 
