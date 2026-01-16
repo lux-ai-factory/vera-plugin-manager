@@ -29,8 +29,10 @@ class Loader(str):
 
     def load_plugin(self):
         for plugin_dir in self.plugin_dirs:
+            if not plugin_dir.exists() or not plugin_dir.is_dir():
+                continue
             for pkg_root in plugin_dir.iterdir():
-                if not pkg_root.is_dir():
+                if not pkg_root.exists() or not pkg_root.is_dir():
                     continue
                 module_path = find_module_directory(pkg_root)
                 if module_path:
