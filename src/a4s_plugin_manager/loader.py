@@ -37,6 +37,7 @@ class Loader():
         self._find_plugins()
 
     def _find_plugins(self):
+        logger.info(f"Loading plugins from {self.plugin_dirs}")
         self.plugins = {}
         for plugin_dir in self.plugin_dirs:
             if not plugin_dir.exists() or not plugin_dir.is_dir():
