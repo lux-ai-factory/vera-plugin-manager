@@ -8,7 +8,8 @@ from typing import Dict
 from a4s_plugin_interface.base_evaluation_plugin import BaseEvaluationPlugin
 
 logger = logging.getLogger(__name__)
-plugin_path = 'plugins'
+plugin_path = "plugins"
+
 
 def find_module_directory(pkg_root: Path) -> Path | None:
     """
@@ -30,7 +31,8 @@ def find_module_directory(pkg_root: Path) -> Path | None:
 
     return None
 
-class Loader():
+
+class Loader:
     def __init__(self, local_plugin_path: str):
         self.plugin_dirs = [Path(local_plugin_path), Path(plugin_path)]
         self.plugins: Dict[str, type[BaseEvaluationPlugin]] = {}
@@ -59,7 +61,8 @@ class Loader():
                         # Reload to capture changes in code during runtime
                         if module_name in sys.modules:
                             modules_to_remove = [
-                                m for m in sys.modules
+                                m
+                                for m in sys.modules
                                 if m == module_name or m.startswith(f"{module_name}.")
                             ]
                             for m in modules_to_remove:
@@ -68,11 +71,15 @@ class Loader():
                         module = importlib.import_module(module_name)
 
                         for _, obj in inspect.getmembers(module, inspect.isclass):
-                            if issubclass(obj, BaseEvaluationPlugin) and obj is not BaseEvaluationPlugin:
-                                self.plugins[obj.__name__] = obj
+                            if (
+                                issubclass(obj, BaseEvaluationPlugin)
+                                and obj is not BaseEvaluationPlugin
+                            ):
+                                self.plugins[obj.display_name] = obj
                     except Exception as e:
-                        logger.error(f"Failed to load plugin {module_name} from {pkg_root}: {e}")
-
+                        logger.error(
+                            f"Failed to load plugin {module_name} from {pkg_root}: {e}"
+                        )
 
     def list_plugins(self):
         self._find_plugins()
