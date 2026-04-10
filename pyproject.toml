@@ -1,12 +1,12 @@
 [project]
-name = "a4s-plugin-manager"
+name = "vera-plugin-manager"
 version = "0.2.1"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "a4s-plugin-interface",
+    "vera-plugin-interface",
 ]
 
 [tool.uv.sources]
-a4s-plugin-interface = { git = "https://github.com/lux-ai-factory/a4s-plugin-interface.git" }
+vera-plugin-interface = { git = "https://github.com/lux-ai-factory/vera-plugin-interface.git" }
