@@ -5,7 +5,7 @@ import logging
 from pathlib import Path
 from typing import Dict
 
-from a4s_plugin_interface.base_evaluation_plugin import BaseEvaluationPlugin
+from vera_plugin_interface.base_evaluation_plugin import BaseEvaluationPlugin
 
 logger = logging.getLogger(__name__)
 plugin_path = "plugins"
