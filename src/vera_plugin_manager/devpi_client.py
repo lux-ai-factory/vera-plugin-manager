@@ -53,5 +53,5 @@ class DevpiClient:
         return self.uv.pip(
             "install",
             install_target,
-            **{"extra-index-url": f"{self.full_index_url}/+simple/"}
+            **{"extra-index-url": f"{self.full_index_url}/+simple/", "no-deps": True}
         )
