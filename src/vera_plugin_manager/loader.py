@@ -1,87 +1,49 @@
-import importlib
-import inspect
-import sys
 import logging
 from pathlib import Path
-from typing import Dict
 
-from vera_plugin_interface.base_evaluation_plugin import BaseEvaluationPlugin
+from vera_plugin_interface import BaseEvaluationPlugin
+
+from .utils import find_installable_packages, get_plugins_from_package_path
 
 logger = logging.getLogger(__name__)
 plugin_path = "plugins"
 
 
-def find_module_directory(pkg_root: Path) -> Path | None:
-    """
-    Strictly checks for:
-    1. pkg_root/module_name/__init__.py
-    2. pkg_root/src/module_name/__init__.py
-    """
-    # Case 2: src/module structure
-    src_dir = pkg_root / "src"
-    if src_dir.exists() and src_dir.is_dir():
-        for subdirectory in src_dir.iterdir():
-            if subdirectory.is_dir() and (subdirectory / "__init__.py").exists():
-                return subdirectory
-
-    # Case 1: Direct module structure
-    for subdirectory in pkg_root.iterdir():
-        if subdirectory.is_dir() and (subdirectory / "__init__.py").exists():
-            return subdirectory
-
-    return None
-
-
 class Loader:
     def __init__(self, local_plugin_path: str):
-        self.plugin_dirs = [Path(local_plugin_path), Path(plugin_path)]
-        self.plugins: Dict[str, type[BaseEvaluationPlugin]] = {}
+        self.plugin_dirs: list[str | Path] = [
+            Path(local_plugin_path),
+            Path(plugin_path),
+        ]
+        self.packages: dict[str, dict] = {}
+        self.plugins: dict[str, type[BaseEvaluationPlugin]] = {}
+        self.plugins2packages: dict[str, str] = {}
         self._find_plugins()
 
     def _find_plugins(self):
         self.plugins = {}
         self.packages = {}
-        for plugin_dir in self.plugin_dirs:
-            if not plugin_dir.exists() or not plugin_dir.is_dir():
-                continue
+        self.plugins2packages = {}
 
-            for pkg_root in plugin_dir.iterdir():
-                if not pkg_root.is_dir():
+        for pkg_path in find_installable_packages(self.plugin_dirs):
+            pkg_path = str(pkg_path)
+
+            try:
+                res = get_plugins_from_package_path(pkg_path)
+                if res is None:
                     continue
+                pkg_name, plugins = res
+                # plugins.keys() are the class names of the Plugins
+                named_plugins = {obj.display_name: obj for obj in plugins.values()}
 
-                module_path = find_module_directory(pkg_root)
-                if module_path:
-                    # module_path is the directory containing __init__.py
-                    # its parent is what needs to be in sys.path
-                    parent_path = str(module_path.parent)
-                    if parent_path not in sys.path:
-                        sys.path.insert(0, parent_path)
+                for plugin_name in named_plugins:
+                    self.plugins2packages[plugin_name] = pkg_name
 
-                    module_name = module_path.name
-                    try:
-                        # Reload to capture changes in code during runtime
-                        if module_name in sys.modules:
-                            modules_to_remove = [
-                                m
-                                for m in sys.modules
-                                if m == module_name or m.startswith(f"{module_name}.")
-                            ]
-                            for m in modules_to_remove:
-                                del sys.modules[m]
+            except Exception as e:
+                logger.error(f"Failed to load plugins in {pkg_path}: {e}")
 
-                        module = importlib.import_module(module_name)
-
-                        for _, obj in inspect.getmembers(module, inspect.isclass):
-                            if (
-                                issubclass(obj, BaseEvaluationPlugin)
-                                and obj is not BaseEvaluationPlugin
-                            ):
-                                self.plugins[obj.display_name] = obj
-                                self.packages[obj.display_name] = pkg_root
-                    except Exception as e:
-                        logger.error(
-                            f"Failed to load plugin {module_name} from {pkg_root}: {e}"
-                        )
+            self.plugins.update(named_plugins)
+            self.packages[pkg_name] = dict(name=pkg_name, path=pkg_path)
 
     def list_plugins(self):
         self._find_plugins()
@@ -94,6 +56,14 @@ class Loader:
             raise KeyError(f"Plugin {name} not found")
         return cls()
 
-    def get_package_path(self, name: str) -> Path | None:
-        self._find_plugins()
-        return self.packages.get(name)
+    def get_package(self, plugin_name: str) -> dict:
+        """
+        This method should be called after load (no _find_plugins call here)
+        """
+        pkg_name = self.plugins2packages.get(plugin_name)
+        if not pkg_name:
+            raise KeyError(f"No Package was found for Plugin {plugin_name}")
+        pkg = self.packages.get(pkg_name)
+        if not pkg:
+            raise KeyError(f"Package {pkg_name} not found")
+        return pkg
