@@ -100,6 +100,15 @@ def load_package_from_dir(package_dir: str | Path) -> ModuleType:
     init_file = package_dir / "__init__.py"
     module_name = package_dir.name
 
+    if not init_file.is_file():
+        raise FileNotFoundError(f"Missing __init__.py in {package_dir}")
+
+    modules_to_remove = [
+        m for m in sys.modules if m == module_name or m.startswith(f"{module_name}.")
+    ]
+    for m in modules_to_remove:
+        sys.modules.pop(m, None)
+
     spec = importlib.util.spec_from_file_location(
         module_name,
         init_file,

@@ -39,11 +39,11 @@ class Loader:
                 for plugin_name in named_plugins:
                     self.plugins2packages[plugin_name] = pkg_name
 
+                self.plugins.update(named_plugins)
+                self.packages[pkg_name] = dict(name=pkg_name, path=pkg_path)
+
             except Exception as e:
                 logger.error(f"Failed to load plugins in {pkg_path}: {e}")
-
-            self.plugins.update(named_plugins)
-            self.packages[pkg_name] = dict(name=pkg_name, path=pkg_path)
 
     def list_plugins(self):
         self._find_plugins()
