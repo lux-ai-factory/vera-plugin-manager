@@ -8,7 +8,7 @@ class DevpiClient:
         self.devpi = CLIWrapper("devpi")
         self.base_url = base_url
         self.index = index
-        self.full_index_url = f"{self.base_url}/{self.index}"
+        self.full_index_url = f"{self.base_url}{self.index}"
         self.simple_index_url = f"{self.full_index_url}/+simple/"
         self.user = user
         self.password = password
