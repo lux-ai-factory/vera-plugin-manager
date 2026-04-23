@@ -1,14 +1,15 @@
 from cli_wrapper import CLIWrapper
 from wheel_filename import WheelFilename
+from .uv_client import uv_install
 
 
 class DevpiClient:
     def __init__(self, base_url: str, index: str, user: str, password: str):
         self.devpi = CLIWrapper("devpi")
-        self.uv = CLIWrapper("uv")
         self.base_url = base_url
         self.index = index
         self.full_index_url = f"{self.base_url}/{self.index}"
+        self.simple_index_url = f"{self.full_index_url}/+simple/"
         self.user = user
         self.password = password
         self._initialized = False
@@ -50,8 +51,4 @@ class DevpiClient:
         if version:
             install_target = f"{package_name}=={version}"
 
-        return self.uv.pip(
-            "install",
-            install_target,
-            **{"extra-index-url": f"{self.full_index_url}/+simple/", "no-deps": True}
-        )
+        return uv_install(install_target, extra_index_url=f"{self.full_index_url}/+simple/", no_deps=True)
