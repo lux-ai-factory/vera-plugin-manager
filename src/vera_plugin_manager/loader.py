@@ -142,6 +142,7 @@ class Loader:
             target = f'{package_name}=={version}'
             uv_install(target, extra_index_url=self.client.simple_index_url, no_deps=True)
 
+        importlib.invalidate_caches()
         module = importlib.import_module(module_name)
         plugin_classes = self._extract_plugin_classes(module)
 

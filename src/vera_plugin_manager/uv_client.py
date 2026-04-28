@@ -1,7 +1,10 @@
+import sys
+import site
 import subprocess
 
 def uv_install(target: str, extra_index_url: str = None, no_deps: bool = False, editable: bool = False):
-    cmd = ["uv", "pip", "install"]
+
+    cmd = ["uv", "pip", "install", "--python", sys.executable]
 
     if editable:
         cmd.append("-e")
@@ -18,5 +21,8 @@ def uv_install(target: str, extra_index_url: str = None, no_deps: bool = False, 
 
     if result.returncode != 0:
         raise RuntimeError(f"uv pip install failed: {result.stderr}")
+
+    # refresh environment
+    site.main()
 
     return result.stdout
