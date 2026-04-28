@@ -39,7 +39,7 @@ class Loader:
     def __init__(self, local_plugin_path: str, registry_url: str, registry_index: str, registry_user: str,
                  registry_password: str):
         self.plugin_dirs = [Path(local_plugin_path), Path(DEFAULT_PLUGIN_PATH)]
-        self.client = DevpiClient(registry_url, registry_index, registry_user, registry_password)
+        self.devpi_client = DevpiClient(registry_url, registry_index, registry_user, registry_password)
 
         self.discovered_packages: Dict[str, Dict[str, dict]] = {}
         self._loaded_plugins: Dict[str, BaseEvaluationPlugin] = {}
@@ -53,17 +53,17 @@ class Loader:
                     continue
                 module_path = find_module_directory(pkg_root)
                 if module_path:
-                    package_name = pkg_root.name
-
                     pyproject_path = pkg_root / "pyproject.toml"
                     if pyproject_path.exists():
                         try:
                             with open(pyproject_path, "rb") as f:
                                 toml_data = tomllib.load(f)
+                                
+                                package_name = toml_data.get("project", {}).get("name")
                                 version = toml_data.get("project", {}).get("version")
 
-                                if not version:
-                                    logger.warning(f"No version found in pyproject.toml for {package_name}")
+                                if not package_name or not version:
+                                    logger.warning(f"Missing name or version in pyproject.toml for {pkg_root.name}")
                                     continue
 
                                 if package_name not in self.discovered_packages:
@@ -71,16 +71,18 @@ class Loader:
 
                                 self.discovered_packages[package_name][version] = {
                                     "source": "local",
-                                    "pkg_root": pkg_root
+                                    "pkg_root": pkg_root,
+                                    "module_name": module_path.name,
+                                    "import_path": str(module_path.parent.resolve())
                                 }
                         except Exception as e:
-                            logger.warning(f"Failed to read version for {package_name}: {e}")
+                            logger.warning(f"Failed to read pyproject.toml for {pkg_root.name}: {e}")
 
     def _discover_registry_packages(self):
-        if not self.client:
+        if not self.devpi_client:
             return
         try:
-            registry_packages = self.client.list_packages()
+            registry_packages = self.devpi_client.list_packages()
             for package_name, versions in registry_packages.items():
                 if package_name not in self.discovered_packages:
                     self.discovered_packages[package_name] = {}
@@ -93,6 +95,7 @@ class Loader:
                         self.discovered_packages[package_name][version] = {
                             "source": "registry",
                             "package": package_name,
+                            "module_name": package_name.replace("-", "_"),
                         }
         except Exception as e:
             logger.error(f"Failed to list registry plugins: {e}")
@@ -113,7 +116,7 @@ class Loader:
                 found_plugins[plugin_key] = obj
         return found_plugins
 
-    def load_package(self, package_name: str, version: str = None) -> Dict[str, BaseEvaluationPlugin]:
+    def load_package(self, package_name: str, version: str) -> Dict[str, BaseEvaluationPlugin]:
         """Installs/Imports a package, caches, and returns all found plugin instances."""
         if not self.discovered_packages:
             self.list_packages()
@@ -127,7 +130,7 @@ class Loader:
             raise KeyError(f"Version '{version}' of package '{package_name}' not found.")
 
         package_meta = available_versions[version]
-        module_name = package_name.replace("-", "_")
+        module_name = package_meta["module_name"]
 
         # Clear existing module from sys.modules to ensure fresh load
         if module_name in sys.modules:
@@ -136,11 +139,15 @@ class Loader:
                 del sys.modules[m]
 
         if package_meta["source"] == "local":
-            target = package_meta["pkg_root"]
-            uv_install(target, no_deps=True, editable=True)
+            import_path = package_meta["import_path"]
+            if import_path not in sys.path:
+                sys.path.insert(0, import_path)
         elif package_meta["source"] == "registry":
             target = f'{package_name}=={version}'
-            uv_install(target, extra_index_url=self.client.simple_index_url, no_deps=True)
+            uv_install(target, extra_index_url=self.devpi_client.simple_index_url, no_deps=True)
+
+        sys.path_importer_cache.clear()
+        importlib.invalidate_caches()
 
         module = importlib.import_module(module_name)
         plugin_classes = self._extract_plugin_classes(module)
