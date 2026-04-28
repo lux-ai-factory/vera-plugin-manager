@@ -113,7 +113,7 @@ class Loader:
                 found_plugins[plugin_key] = obj
         return found_plugins
 
-    def load_package(self, package_name: str, version: str = None) -> Dict[str, BaseEvaluationPlugin]:
+    def load_package(self, package_name: str, version: str | None = None) -> Dict[str, BaseEvaluationPlugin]:
         """Installs/Imports a package, caches, and returns all found plugin instances."""
         if not self.discovered_packages:
             self.list_packages()
@@ -142,6 +142,7 @@ class Loader:
             target = f'{package_name}=={version}'
             uv_install(target, extra_index_url=self.client.simple_index_url, no_deps=True)
 
+        importlib.invalidate_caches()
         module = importlib.import_module(module_name)
         plugin_classes = self._extract_plugin_classes(module)
 
