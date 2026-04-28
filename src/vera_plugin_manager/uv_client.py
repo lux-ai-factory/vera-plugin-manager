@@ -2,8 +2,8 @@ import sys
 import site
 import subprocess
 
-def uv_install(target: str, extra_index_url: str = None, no_deps: bool = False, editable: bool = False):
 
+def uv_install(target: str, extra_index_url: str | None = None, no_deps: bool = False, editable: bool = False):
     cmd = ["uv", "pip", "install", "--python", sys.executable]
 
     if editable:
